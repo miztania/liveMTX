@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STRYK Live Hub</title>
+<style>
+  :root {
+    --bg: #0e0f12; --card: #17191e; --card2: #1e2127; --line: #2a2d35; --text: #eceef2; --muted: #9aa0ab;
+    --live: #ff2d3d; --soon: #f5b400; --off: #4a4f59; --accent: #ff6a1a; --ok: #2fbf71;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 system-ui, "Segoe UI", "Noto Sans Thai", sans-serif; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 18px 16px 40px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-bottom: 14px; }
+  h1 { margin: 0; font-size: 22px; }
+  h1 small { display: block; font-size: 13px; color: var(--muted); font-weight: 400; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 0 0 10px; }
+  .spacer { flex: 1; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px;
+    font-weight: 700; font-size: 11px; background: var(--off); color: #fff; white-space: nowrap; }
+  .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .badge.live { background: var(--live); }
+  .badge.live::before { animation: pulse 1.2s infinite; }
+  .badge.upcoming { background: var(--soon); color: #111; }
+  .badge.checking { background: transparent; border: 1px solid var(--line); color: var(--muted); }
+  @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .2 } }
+
+  /* KPI */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .kpi .v { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .kpi .l { color: var(--muted); font-size: 12px; }
+  .kpi.hot .v { color: var(--live); }
+
+  .layout { display: grid; grid-template-columns: 1fr 360px; gap: 14px; }
+  @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+
+  /* Main player + multiview */
+  .main { position: relative; aspect-ratio: 16/9; background: #000; border-radius: 10px; overflow: hidden; }
+  .main iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .main .empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); text-align: center; padding: 20px; }
+  .mainInfo { display: flex; gap: 10px; align-items: center; margin: 8px 0 14px; }
+  .mainInfo .t { font-weight: 600; }
+  .multi { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .tile { background: var(--card2); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; cursor: pointer; }
+  .tile.active { border-color: var(--accent); }
+  .tile .vid { position: relative; aspect-ratio: 16/9; background: #000; }
+  .tile .vid iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; pointer-events: none; }
+  .tile .cap { padding: 6px 9px; font-size: 12px; display: flex; gap: 6px; align-items: center; }
+  .tile .cap b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Channel list */
+  .chs { display: flex; flex-direction: column; gap: 6px; }
+  .ch { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 8px 10px; border-radius: 8px;
+    background: var(--card2); border: 1px solid transparent; }
+  .ch.live { border-color: var(--live); }
+  .ch .n { font-weight: 600; }
+  .ch .n a { color: inherit; text-decoration: none; }
+  .ch .n a:hover { color: var(--accent); }
+  .ch .s { grid-column: 1 / -1; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tag { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: #333844; color: var(--muted); margin-left: 4px; font-weight: 500; }
+  .missing { color: var(--muted); font-size: 12px; margin-top: 10px; }
+
+  /* Matches */
+  .matches { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }
+  .m { background: var(--card2); border-radius: 8px; padding: 9px 11px; font-size: 13px; }
+  .m .h { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+  .m .h .now { color: var(--live); font-weight: 700; }
+  .m .h .done { color: var(--off); }
+  .m .p { display: flex; justify-content: space-between; gap: 6px; align-items: center; }
+
+  /* Timeline */
+  .tl { position: relative; }
+  .tl .row { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 8px; height: 22px; }
+  .tl .lbl { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl .bar { position: relative; height: 12px; background: #23262d; border-radius: 3px; }
+  .tl .seg { position: absolute; top: 0; bottom: 0; background: var(--live); border-radius: 3px; min-width: 2px; }
+  .tl .ax { display: grid; grid-template-columns: 120px 1fr; gap: 8px; font-size: 10px; color: var(--muted); }
+  .tl .ax div:last-child { display: flex; justify-content: space-between; }
+  .tl .nowline { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent); }
+
+  .log { max-height: 220px; overflow: auto; font-size: 12px; color: var(--muted); }
+  .log div { padding: 3px 0; border-bottom: 1px dashed var(--line); }
+  .log b { color: var(--text); font-weight: 600; }
+  section { margin-top: 14px; }
+  details { margin-top: 14px; color: var(--muted); font-size: 12px; }
+  details input { width: 100%; margin: 6px 0; padding: 7px; border-radius: 6px; border: 1px solid var(--line); background: #0b0c0f; color: var(--text); }
+  details button { padding: 6px 12px; border-radius: 6px; border: 0; background: var(--accent); color: #fff; cursor: pointer; }
+  #probes { position: fixed; left: -9999px; top: 0; width: 320px; height: 180px; overflow: hidden; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>STRYK Live Hub <small>Muay Thai XTREME · รอบแรก · ส. 17 ต.ค. 2026 · ไลฟ์ทางการ + ไลฟ์ส่วนตัวของผู้แข่ง</small></h1>
+    <span class="spacer"></span>
+    <span id="clock" class="badge checking"></span>
+  </header>
+
+  <div class="kpis">
+    <div class="kpi hot"><div class="v" id="kLive">0</div><div class="l">ช่องที่ไลฟ์อยู่ตอนนี้</div></div>
+    <div class="kpi"><div class="v" id="kPeak">0</div><div class="l">ไลฟ์พร้อมกันสูงสุด</div></div>
+    <div class="kpi"><div class="v" id="kFirst">—</div><div class="l">ไลฟ์ก่อนใคร</div></div>
+    <div class="kpi"><div class="v" id="kLong">—</div><div class="l">ไลฟ์นานที่สุด</div></div>
+    <div class="kpi"><div class="v" id="kViewers">—</div><div class="l">คนดูรวม (ต้องใช้ API key)</div></div>
+  </div>
+
+  <div class="layout">
+    <div>
+      <div class="card">
+        <div class="main" id="main"><div class="empty">ยังไม่มีช่องไหนไลฟ์<br>หน้านี้เช็กทุกช่องอัตโนมัติ เมื่อมีคนไลฟ์จะขึ้นที่นี่เอง</div></div>
+        <div class="mainInfo"><span id="mainBadge"></span><span class="t" id="mainTitle"></span></div>
+        <h2>ไลฟ์ทั้งหมดตอนนี้ (คลิกเพื่อดูจอใหญ่)</h2>
+        <div class="multi" id="multi"></div>
+      </div>
+
+      <section class="card">
+        <h2>คู่แข่งขัน · ใครเปิดไลฟ์ฝั่งตัวเองบ้าง</h2>
+        <div class="matches" id="matches"></div>
+      </section>
+
+      <section class="card">
+        <h2>ไทม์ไลน์การไลฟ์วันนี้ (18:00–24:00)</h2>
+        <div class="tl" id="tl"></div>
+      </section>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>ช่องที่ติดตาม</h2>
+        <div class="chs" id="chs"></div>
+        <div class="missing" id="missing"></div>
+        <details>
+          <summary>เพิ่มช่องเอง</summary>
+          ใส่ชื่อผู้แข่ง + Channel ID (ขึ้นต้นด้วย UC...)
+          <input id="addName" placeholder="ชื่อ เช่น Teep">
+          <input id="addId" placeholder="UCxxxxxxxxxxxxxxxxxxxxxx">
+          <button id="addBtn">เพิ่ม</button>
+        </details>
+        <details>
+          <summary>API key สำหรับจำนวนคนดู (ไม่บังคับ)</summary>
+          ถ้าใส่ YouTube Data API v3 key จะดึงจำนวนคนดูของแต่ละไลฟ์ทุก 60 วินาที (1 quota ต่อรอบ)
+          <input id="key" type="password" placeholder="AIza..." autocomplete="off">
+          <button id="saveKey">บันทึก</button>
+        </details>
+      </div>
+
+      <section class="card">
+        <h2>บันทึกเหตุการณ์</h2>
+        <div class="log" id="log"></div>
+      </section>
+    </div>
+  </div>
+</div>
+<div id="probes"></div>
+
+<script>
+// ===================== ข้อมูล =====================
+// sure = ยืนยันแล้วว่าเป็นคนนี้ · maybe = ชื่อตรงแต่ยังไม่ยืนยัน / ช่องไม่ค่อยเคลื่อนไหว
+const BASE_CHANNELS = [
+  { key: 'MTX',         name: 'Muay Thai XTREME (ทางการ)', id: 'UCalrBraXBM1e-W3KN1LXbvw', handle: '@MuayThaiXTREME',     conf: 'sure', official: true },
+  { key: 'BaggioPac',   name: 'BaggioPac',      id: 'UCwijn5jPhwZIrOh5WSZ6W-A', handle: '@baggiopacofficial', conf: 'sure' },
+  { key: 'Book',        name: 'Book',           id: 'UC66G9HelrGzlpPZUJmkQgLA', handle: '@booknopparut',      conf: 'sure' },
+  { key: 'NewPlayerX1', name: 'NewPlayerX1',    id: 'UCURiGkVFYtO1JMxlwcPQI_Q', handle: '@newplayerx1',       conf: 'sure' },
+  { key: 'MizuharaYami',name: 'Mizuhara Yami',  id: 'UC1ibZkqGoK8pSctzOwXUcWA', handle: '@MizuharaYami',      conf: 'sure' },
+  { key: 'BugTa',       name: 'BugTa',          id: 'UCfOQVOpbSyhAscC31pP-NDg', handle: '@bugta6123',         conf: 'maybe' },
+  { key: 'Zeena',       name: 'Zeena',          id: 'UC1mw0Y8nvWsAEwJeFEj1fLA', handle: '@ZENAseewithyou',    conf: 'maybe' },
+  { key: 'RuTz08',      name: 'RuTz08',         id: 'UCQs8s0u2SqvZJvPxyzEXlnA', handle: '@RuTz_08',           conf: 'maybe' },
+  { key: 'ToonSoSad',   name: 'ToonSoSad',      id: 'UCzWr-46GgB51W-3MS7sPPnw', handle: '@ToonSoSad',         conf: 'maybe' },
+];
+
+const MATCHES = [
+  { label: 'Featured 1', at: '2026-10-17T19:00:00+07:00', a: 'MizuharaYami', b: 'Jaosine' },
+  { label: 'Featured 2', at: '2026-10-17T19:30:00+07:00', a: 'Teep',         b: 'NewPlayerX1' },
+  { label: 'Main Event', at: '2026-10-17T20:00:00+07:00', a: 'BaggioPac',    b: 'Book' },
+  { label: '21:00', at: '2026-10-17T21:00:00+07:00', a: 'MiarCat',   b: 'Nadriguez' },
+  { label: '21:00', at: '2026-10-17T21:00:00+07:00', a: 'ToonSoSad', b: 'Jephiroth' },
+  { label: '21:00', at: '2026-10-17T21:00:00+07:00', a: 'Zeena',     b: 'BottomofFoodchain' },
+  { label: '21:00', at: '2026-10-17T21:00:00+07:00', a: 'RuTz08',    b: 'Taxinn' },
+  { label: '21:00', at: '2026-10-17T21:00:00+07:00', a: 'BugTa',     b: '007ZA' },
+];
+const DISPLAY = { MizuharaYami: 'Mizuhara Yami' };
+
+const DAY = '2026-10-17';
+const TL_START = new Date(`${DAY}T18:00:00+07:00`).getTime();
+const TL_END   = new Date('2026-10-18T00:00:00+07:00').getTime();
+const PROBE_EVERY_MS = 90_000;   // แต่ละช่องเช็กทุก 90 วิ (กระจายเวลากัน)
+const VIEWERS_EVERY_MS = 60_000;
+
+// ===================== state =====================
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+let channels = [...BASE_CHANNELS, ...store.get('stryk_extra', [])];
+const st = {};          // key -> { status, videoId, title, since, viewers }
+let sessions = store.get('stryk_sessions_' + DAY, {}); // key -> [{s, e}]
+let peak = store.get('stryk_peak_' + DAY, 0);
+let mainKey = null;
+const $ = id => document.getElementById(id);
+const nameOf = k => (channels.find(c => c.key === k)?.name) || DISPLAY[k] || k;
+const tfmt = t => new Date(t).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
+const dur = ms => { const m = Math.round(ms / 60000); return m >= 60 ? `${Math.floor(m / 60)}ชม.${m % 60}น.` : `${m}น.`; };
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function log(html) {
+  const d = document.createElement('div');
+  d.innerHTML = `${tfmt(Date.now())} · ${html}`;
+  $('log').prepend(d);
+}
+
+// ===================== ตรวจสถานะไลฟ์ (ไม่ใช้ key) =====================
+// ใช้ YouTube IFrame player แบบซ่อน โหลด live_stream ของแต่ละช่อง แล้วดูว่ามีวิดีโอไลฟ์อยู่ไหม
+function probe(ch) {
+  return new Promise(resolve => {
+    const host = document.createElement('div');
+    $('probes').appendChild(host);
+    let done = false;
+    const finish = (res) => { if (done) return; done = true; try { p.destroy(); } catch {} host.remove(); resolve(res); };
+    const p = new YT.Player(host, {
+      width: 320, height: 180, videoId: 'live_stream',
+      playerVars: { channel: ch.id, autoplay: 0, mute: 1, controls: 0 },
+      events: {
+        onReady: e => {
+          const d = e.target.getVideoData() || {};
+          // ไม่ไลฟ์ / เปิดผ่าน file:// → video_id จะยังเป็น "live_stream" และมี errorCode
+          if (d.errorCode === 'embedder.identity.missing.referrer') {
+            needServer();
+            return finish({ status: 'offline' });
+          }
+          if (!d.video_id || d.video_id === 'live_stream' || d.errorCode) return finish({ status: 'offline' });
+          finish({ status: d.isLive ? 'live' : 'upcoming', videoId: d.video_id, title: d.title });
+        },
+        onError: () => finish({ status: 'offline' }),
+      },
+    });
+    setTimeout(() => {
+      const prev = st[ch.key] || {};
+      finish(!prev.status || prev.status === 'checking' ? { status: 'offline' } : { status: prev.status, videoId: prev.videoId, title: prev.title });
+    }, 15000);
+  });
+}
+
+let warned = false;
+function needServer() {
+  if (warned) return; warned = true;
+  log('⚠️ <b>YouTube ไม่ยอมให้เช็กจากไฟล์ที่เปิดตรงๆ</b> ให้เปิดผ่าน local server เช่น <code>python -m http.server 8000</code> แล้วเข้า http://localhost:8000/mtx-live.html');
+}
+
+function applyStatus(ch, res) {
+  const prev = st[ch.key] || {};
+  const now = Date.now();
+  const next = { ...prev, ...res };
+  if (res.status === 'live' && prev.status !== 'live') {
+    next.since = now;
+    (sessions[ch.key] ||= []).push({ s: now, e: now });
+    log(`🔴 <b>${esc(ch.name)}</b> เริ่มไลฟ์ — ${esc(res.title || '')}`);
+    notify(`${ch.name} ไลฟ์แล้ว`, res.title);
+  } else if (res.status === 'live') {
+    const arr = sessions[ch.key]; if (arr?.length) arr[arr.length - 1].e = now;
+  } else if (prev.status === 'live' && res.status !== 'live') {
+    const arr = sessions[ch.key]; if (arr?.length) arr[arr.length - 1].e = now;
+    log(`⚪ <b>${esc(ch.name)}</b> จบไลฟ์ (${dur(now - (prev.since || now))})`);
+    next.viewers = null;
+  }
+  if (res.status === 'upcoming' && prev.status !== 'upcoming') log(`🟡 <b>${esc(ch.name)}</b> ตั้งไลฟ์รอไว้ — ${esc(res.title || '')}`);
+  st[ch.key] = next;
+  store.set('stryk_sessions_' + DAY, sessions);
+  render();
+}
+
+function startProbing() {
+  channels.forEach((ch, i) => {
+    st[ch.key] ||= { status: 'checking' };
+    const loop = async () => {
+      applyStatus(ch, await probe(ch));
+      setTimeout(loop, PROBE_EVERY_MS);
+    };
+    setTimeout(loop, i * 1500); // กระจายไม่ให้โหลดพร้อมกัน
+  });
+}
+
+// ===================== จำนวนคนดู (ถ้ามี key) =====================
+async function pollViewers() {
+  const key = store.get('stryk_key', '');
+  const live = channels.filter(c => st[c.key]?.status === 'live' && st[c.key].videoId);
+  if (key && live.length) {
+    try {
+      const ids = live.map(c => st[c.key].videoId).join(',');
+      const r = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${ids}&key=${key}`).then(r => r.json());
+      if (r.error) throw new Error(r.error.message);
+      for (const v of r.items || []) {
+        const c = live.find(c => st[c.key].videoId === v.id);
+        if (c) st[c.key].viewers = Number(v.liveStreamingDetails?.concurrentViewers || 0);
+      }
+      render();
+    } catch (e) { log('API ผิดพลาด: ' + esc(e.message)); }
+  }
+  setTimeout(pollViewers, VIEWERS_EVERY_MS);
+}
+
+function notify(title, body) {
+  if ('Notification' in window && Notification.permission === 'granted') new Notification(title, { body: body || '' });
+}
+
+// ===================== render =====================
+function badge(s, viewers) {
+  const map = { live: 'LIVE', upcoming: 'รอไลฟ์', offline: 'ออฟไลน์', checking: 'กำลังเช็ก' };
+  const v = s === 'live' && viewers != null ? ` · ${viewers.toLocaleString()}` : '';
+  return `<span class="badge ${s || 'checking'}">${map[s] || map.checking}${v}</span>`;
+}
+
+function setMain(key) {
+  mainKey = key;
+  const s = st[key];
+  if (!s?.videoId) { $('main').innerHTML = '<div class="empty">ยังไม่มีช่องไหนไลฟ์</div>'; return; }
+  $('main').innerHTML = `<iframe src="https://www.youtube.com/embed/${s.videoId}?autoplay=1&mute=1&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+  $('mainBadge').innerHTML = badge(s.status, s.viewers);
+  $('mainTitle').textContent = `${nameOf(key)} — ${s.title || ''}`;
+  renderMulti();
+}
+
+let multiSig = '';
+function renderMulti() {
+  const live = channels.filter(c => st[c.key]?.status === 'live');
+  const sig = live.map(c => c.key + st[c.key].videoId).join('|') + mainKey;
+  if (sig === multiSig) {
+    live.forEach(c => { const b = document.querySelector(`[data-tile="${c.key}"] .cap .badge`); if (b) b.outerHTML = badge('live', st[c.key].viewers); });
+    return;
+  }
+  multiSig = sig;
+  $('multi').innerHTML = live.length ? live.map(c => `
+    <div class="tile ${c.key === mainKey ? 'active' : ''}" data-tile="${c.key}">
+      <div class="vid"><iframe src="https://www.youtube.com/embed/${st[c.key].videoId}?autoplay=1&mute=1&controls=0&playsinline=1" allow="autoplay"></iframe></div>
+      <div class="cap"><b>${esc(c.name)}</b>${badge('live', st[c.key].viewers)}</div>
+    </div>`).join('') : '<div style="color:var(--muted)">ยังไม่มี</div>';
+  $('multi').querySelectorAll('.tile').forEach(t => t.onclick = () => setMain(t.dataset.tile));
+}
+
+function render() {
+  const now = Date.now();
+  const live = channels.filter(c => st[c.key]?.status === 'live');
+
+  // main: ถ้ายังไม่เลือก ให้ช่องทางการก่อน แล้วค่อยช่องที่คนดูเยอะสุด
+  if (!mainKey || st[mainKey]?.status !== 'live') {
+    const pick = live.find(c => c.official) || [...live].sort((a, b) => (st[b.key].viewers || 0) - (st[a.key].viewers || 0))[0];
+    if (pick) setMain(pick.key);
+    else if (mainKey) { mainKey = null; setMain(null); $('mainBadge').innerHTML = ''; $('mainTitle').textContent = ''; }
+  } else {
+    $('mainBadge').innerHTML = badge('live', st[mainKey].viewers);
+  }
+  renderMulti();
+
+  // KPI
+  $('kLive').textContent = live.length;
+  if (live.length > peak) { peak = live.length; store.set('stryk_peak_' + DAY, peak); }
+  $('kPeak').textContent = peak;
+  const firsts = Object.entries(sessions).filter(([, a]) => a.length).map(([k, a]) => [k, a[0].s]).sort((a, b) => a[1] - b[1]);
+  $('kFirst').textContent = firsts.length ? `${nameOf(firsts[0][0])} ${tfmt(firsts[0][1])}` : '—';
+  const totals = Object.entries(sessions).map(([k, a]) => [k, a.reduce((t, x) => t + (x.e - x.s), 0)]).sort((a, b) => b[1] - a[1]);
+  $('kLong').textContent = totals.length && totals[0][1] > 0 ? `${nameOf(totals[0][0])} ${dur(totals[0][1])}` : '—';
+  const vs = live.map(c => st[c.key].viewers).filter(v => v != null);
+  $('kViewers').textContent = vs.length ? vs.reduce((a, b) => a + b, 0).toLocaleString() : '—';
+  [$('kFirst'), $('kLong')].forEach(e => e.style.fontSize = '16px');
+
+  // channel list
+  const order = { live: 0, upcoming: 1, checking: 2, offline: 3 };
+  $('chs').innerHTML = [...channels].sort((a, b) => (order[st[a.key]?.status] ?? 2) - (order[st[b.key]?.status] ?? 2)).map(c => {
+    const s = st[c.key] || {};
+    const sub = s.status === 'live' ? `ไลฟ์มา ${dur(now - s.since)} · ${s.title || ''}` : s.status === 'upcoming' ? `รอไลฟ์ · ${s.title || ''}` : c.handle;
+    return `<div class="ch ${s.status === 'live' ? 'live' : ''}">
+      <span class="n"><a href="https://www.youtube.com/channel/${c.id}/live" target="_blank" rel="noopener">${esc(c.name)}</a>${c.conf === 'maybe' ? '<span class="tag">ยังไม่ยืนยัน</span>' : ''}${c.custom ? '<span class="tag">เพิ่มเอง</span>' : ''}</span>
+      ${badge(s.status, s.viewers)}
+      <span class="s">${esc(sub)}</span></div>`;
+  }).join('');
+  const all = [...new Set(MATCHES.flatMap(m => [m.a, m.b]))];
+  const miss = all.filter(k => !channels.some(c => c.key === k));
+  $('missing').textContent = miss.length ? 'ยังไม่พบช่อง YouTube: ' + miss.map(nameOf).join(', ') : '';
+
+  // matches
+  $('matches').innerHTML = MATCHES.map(m => {
+    const t = new Date(m.at).getTime();
+    const phase = now >= t + 30 * 60e3 ? '<span class="done">จบแล้ว</span>' : now >= t ? '<span class="now">กำลังแข่ง</span>' : `อีก ${dur(t - now)}`;
+    const side = k => { const c = channels.find(c => c.key === k); return `<span>${esc(nameOf(k))}</span>${c ? badge(st[k]?.status, st[k]?.viewers) : '<span class="tag">ไม่มีช่อง</span>'}`; };
+    return `<div class="m"><div class="h"><span>${m.label} · ${tfmt(t)}</span>${phase}</div>
+      <div class="p">${side(m.a)}</div><div class="p">${side(m.b)}</div></div>`;
+  }).join('');
+
+  // timeline
+  const span = TL_END - TL_START;
+  const pct = t => Math.max(0, Math.min(100, (t - TL_START) / span * 100));
+  const rows = channels.map(c => {
+    const segs = (sessions[c.key] || []).map(x => `<div class="seg" style="left:${pct(x.s)}%;width:${pct(x.e) - pct(x.s)}%" title="${tfmt(x.s)}–${tfmt(x.e)}"></div>`).join('');
+    const marks = MATCHES.filter(m => m.a === c.key || m.b === c.key).map(m => `<div class="nowline" style="left:${pct(new Date(m.at))}%;background:var(--soon)" title="เวลาแข่ง ${tfmt(new Date(m.at))}"></div>`).join('');
+    return `<div class="row"><div class="lbl">${esc(c.name)}</div><div class="bar">${segs}${marks}${now > TL_START && now < TL_END ? `<div class="nowline" style="left:${pct(now)}%"></div>` : ''}</div></div>`;
+  }).join('');
+  const ticks = [18, 19, 20, 21, 22, 23, 24].map(h => `<span>${h}:00</span>`).join('');
+  $('tl').innerHTML = rows + `<div class="ax"><div></div><div>${ticks}</div></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px">แถบแดง = ช่วงที่ไลฟ์ · เส้นเหลือง = เวลาแข่งของคนนั้น · เส้นส้ม = ตอนนี้ · บันทึกเฉพาะตอนเปิดหน้านี้ไว้</div>`;
+}
+
+// ===================== UI =====================
+$('addBtn').onclick = () => {
+  const name = $('addName').value.trim(), id = $('addId').value.trim();
+  if (!name || !/^UC[\w-]{22}$/.test(id)) return alert('ใส่ชื่อ และ Channel ID ที่ขึ้นต้น UC (24 ตัวอักษร)');
+  const key = name.replace(/\s+/g, '');
+  const extra = store.get('stryk_extra', []).filter(c => c.key !== key);
+  const ch = { key, name, id, handle: id, conf: 'sure', custom: true };
+  extra.push(ch); store.set('stryk_extra', extra);
+  channels = channels.filter(c => c.key !== key).concat(ch);
+  st[key] = { status: 'checking' };
+  (async function loop() { applyStatus(ch, await probe(ch)); setTimeout(loop, PROBE_EVERY_MS); })();
+  render();
+};
+$('key').value = store.get('stryk_key', '');
+$('saveKey').onclick = () => { store.set('stryk_key', $('key').value.trim()); log('บันทึก API key แล้ว'); };
+document.addEventListener('click', () => {
+  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+}, { once: true });
+setInterval(() => { $('clock').textContent = new Date().toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok' }) + ' (ไทย)'; }, 1000);
+setInterval(render, 30_000);
+
+channels.forEach(c => st[c.key] = { status: 'checking' });
+render();
+log('เริ่มติดตาม ' + channels.length + ' ช่อง');
+
+const tag = document.createElement('script');
+tag.src = 'https://www.youtube.com/iframe_api';
+document.head.appendChild(tag);
+window.onYouTubeIframeAPIReady = () => { startProbing(); pollViewers(); };
+</script>
+</body>
+</html>
