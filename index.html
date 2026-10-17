@@ -232,7 +232,9 @@ function probe(ch) {
             return finish({ status: 'offline' });
           }
           if (!d.video_id || d.video_id === 'live_stream' || d.errorCode) return finish({ status: 'offline' });
-          finish({ status: d.isLive ? 'live' : 'upcoming', videoId: d.video_id, title: d.title });
+          // ไม่ไลฟ์ YouTube อาจส่งคลิปเก่า/คลิปแนะนำมาแทน จึงนับเฉพาะ isLive เท่านั้น
+          if (!d.isLive) return finish({ status: 'offline' });
+          finish({ status: 'live', videoId: d.video_id, title: d.title });
         },
         onError: () => finish({ status: 'offline' }),
       },
