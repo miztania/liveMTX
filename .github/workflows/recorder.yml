@@ -1,0 +1,54 @@
+name: STRYK live recorder
+
+# บันทึกจำนวนคนดูทุก 60 วิ ตลอดงาน แล้ว push ไฟล์ live.json ขึ้น branch `data`
+# เริ่มเอง 18:30 น. (11:30 UTC) วันที่ 17 ต.ค. หรือกด "Run workflow" เองได้ทุกเมื่อ
+on:
+  schedule:
+    - cron: "30 11 17 10 *"
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "บันทึกนานสุดกี่นาที (สูงสุด 345)"
+        default: "345"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: recorder
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare data branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir data && cd data
+          git init -q
+          git config user.name "stryk-recorder"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git fetch -q origin data; then
+            git checkout -q -b data FETCH_HEAD
+          else
+            git checkout -q --orphan data
+            echo '{}' > live.json
+            git add live.json
+            git commit -q -m "data: init"
+          fi
+
+      - name: Record
+        working-directory: data
+        env:
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}
+          CHANNELS: ../channels.json
+          OUT: live.json
+          GIT_PUSH: "1"
+          MAX_MINUTES: ${{ github.event.inputs.minutes || '345' }}
+        run: python3 ../recorder/record.py

@@ -97,6 +97,7 @@
   <header>
     <h1>STRYK Live Hub <small>Muay Thai XTREME · รอบแรก · ส. 17 ต.ค. 2026 · ไลฟ์ทางการ + ไลฟ์ส่วนตัวของผู้แข่ง</small></h1>
     <span class="spacer"></span>
+    <a class="badge checking" href="analytics.html" style="text-decoration:none">📊 หน้าวิเคราะห์</a>
     <a id="testToggle" class="badge checking" style="text-decoration:none;cursor:pointer"></a>
     <span id="clock" class="badge checking"></span>
   </header>
@@ -106,7 +107,7 @@
     <div class="kpi"><div class="v" id="kPeak">0</div><div class="l">ไลฟ์พร้อมกันสูงสุด</div></div>
     <div class="kpi"><div class="v" id="kFirst">—</div><div class="l">ไลฟ์ก่อนใคร</div></div>
     <div class="kpi"><div class="v" id="kLong">—</div><div class="l">ไลฟ์นานที่สุด</div></div>
-    <div class="kpi"><div class="v" id="kViewers">—</div><div class="l">คนดูรวม (ต้องใช้ API key)</div></div>
+    <div class="kpi"><div class="v" id="kViewers">—</div><div class="l">คนดูรวมตอนนี้ · <span id="recInfo">กำลังโหลด</span></div></div>
   </div>
 
   <div class="layout">
@@ -140,12 +141,6 @@
           <input id="addName" placeholder="ชื่อ เช่น Teep">
           <input id="addId" placeholder="UCxxxxxxxxxxxxxxxxxxxxxx">
           <button id="addBtn">เพิ่ม</button>
-        </details>
-        <details>
-          <summary>API key สำหรับจำนวนคนดู (ไม่บังคับ)</summary>
-          ถ้าใส่ YouTube Data API v3 key จะดึงจำนวนคนดูของแต่ละไลฟ์ทุก 60 วินาที (1 quota ต่อรอบ)
-          <input id="key" type="password" placeholder="AIza..." autocomplete="off">
-          <button id="saveKey">บันทึก</button>
         </details>
       </div>
 
@@ -189,7 +184,7 @@ const DAY = '2026-10-17';
 const TL_START = new Date(`${DAY}T18:00:00+07:00`).getTime();
 const TL_END   = new Date('2026-10-18T00:00:00+07:00').getTime();
 const PROBE_EVERY_MS = 90_000;   // แต่ละช่องเช็กทุก 90 วิ (กระจายเวลากัน)
-const VIEWERS_EVERY_MS = 60_000;
+const VIEWERS_EVERY_MS = 90_000;  // GitHub API จำกัด 60 ครั้ง/ชม./IP
 
 // ===================== state =====================
 const store = {
@@ -305,21 +300,36 @@ function startProbing() {
   });
 }
 
-// ===================== จำนวนคนดู (ถ้ามี key) =====================
-async function pollViewers() {
-  const key = store.get('stryk_key', '');
-  const live = channels.filter(c => st[c.key]?.status === 'live' && st[c.key].videoId);
-  if (key && live.length) {
+// ===================== จำนวนคนดู (จาก recorder บน GitHub Actions) =====================
+// recorder ใช้ API key ที่เก็บเป็น secret แล้วเขียน live.json ลง branch `data` · หน้าเว็บแค่อ่านไฟล์
+const DATA_SOURCES = [
+  'https://api.github.com/repos/miztania/liveMTX/contents/live.json?ref=data',
+  'https://raw.githubusercontent.com/miztania/liveMTX/data/live.json',
+];
+async function loadRecorder() {
+  for (const url of DATA_SOURCES) {
     try {
-      const ids = live.map(c => st[c.key].videoId).join(',');
-      const r = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${ids}&key=${key}`).then(r => r.json());
-      if (r.error) throw new Error(r.error.message);
-      for (const v of r.items || []) {
-        const c = live.find(c => st[c.key].videoId === v.id);
-        if (c) st[c.key].viewers = Number(v.liveStreamingDetails?.concurrentViewers || 0);
-      }
-      render();
-    } catch (e) { log('API ผิดพลาด: ' + esc(e.message)); }
+      const r = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(),
+        url.includes('api.github.com') ? { headers: { Accept: 'application/vnd.github.raw' } } : {});
+      if (r.ok) { const j = await r.json(); if (j && j.samples) return j; }
+    } catch {}
+  }
+  return null;
+}
+async function pollViewers() {
+  const d = TEST_MODE ? null : await loadRecorder();
+  if (d && Date.now() - (d.updated || 0) < 5 * 60e3) {
+    const last = d.samples.at(-1)?.d || {};
+    const perKey = {};
+    for (const [vid, arr] of Object.entries(last)) {
+      const k = d.streams[vid]?.key;
+      if (k && arr[0] != null) perKey[k] = (perKey[k] || 0) + arr[0];
+    }
+    for (const c of channels) if (st[c.key]) st[c.key].viewers = st[c.key].status === 'live' ? (perKey[c.key] ?? null) : null;
+    $('recInfo').textContent = 'อัปเดตจาก recorder ' + tfmt(d.updated);
+    render();
+  } else {
+    $('recInfo').textContent = TEST_MODE ? 'โหมดทดสอบไม่ดึงคนดู' : 'recorder ยังไม่ทำงาน';
   }
   setTimeout(pollViewers, VIEWERS_EVERY_MS);
 }
@@ -437,8 +447,6 @@ $('addBtn').onclick = () => {
   (async function loop() { applyStatus(ch, await probe(ch)); setTimeout(loop, PROBE_EVERY_MS); })();
   render();
 };
-$('key').value = store.get('stryk_key', '');
-$('saveKey').onclick = () => { store.set('stryk_key', $('key').value.trim()); log('บันทึก API key แล้ว'); };
 document.addEventListener('click', () => {
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
 }, { once: true });

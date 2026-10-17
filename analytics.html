@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STRYK Analytics</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0e0f12; --card: #17191e; --card2: #1e2127; --line: #2a2d35; --text: #eceef2; --muted: #9aa0ab;
+    --live: #ff2d3d; --soon: #f5b400; --off: #4a4f59; --accent: #ff6a1a; --ok: #2fbf71;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 system-ui, "Segoe UI", "Noto Sans Thai", sans-serif; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 18px 16px 40px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 14px; }
+  h1 { margin: 0; font-size: 22px; }
+  h1 small { display: block; font-size: 13px; color: var(--muted); font-weight: 400; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 0 0 10px; }
+  .spacer { flex: 1; }
+  a.btn, button.btn { color: var(--text); text-decoration: none; border: 1px solid var(--line); background: none;
+    padding: 6px 12px; border-radius: 8px; font: inherit; font-size: 13px; cursor: pointer; }
+  a.btn:hover, button.btn:hover { border-color: var(--accent); color: var(--accent); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px;
+    border: 1px solid var(--line); color: var(--muted); }
+  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--off); }
+  .pill.ok::before { background: var(--ok); }
+  .pill.bad::before { background: var(--live); }
+  .pill.demo { color: #111; background: var(--soon); border-color: var(--soon); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .kpi .v { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .kpi .l { color: var(--muted); font-size: 12px; }
+  .kpi .s { color: var(--muted); font-size: 11px; }
+  .grid2 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .grid2b { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  @media (max-width: 1000px) { .grid2, .grid2b { grid-template-columns: 1fr; } }
+  .chartbox { position: relative; height: 340px; }
+  .chartbox.sm { height: 280px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; cursor: pointer; user-select: none; }
+  th:hover { color: var(--text); }
+  tr.live td:first-child::after { content: " ● LIVE"; color: var(--live); font-size: 10px; font-weight: 700; }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  .tablewrap { overflow-x: auto; }
+  .empty { color: var(--muted); padding: 30px; text-align: center; }
+  .insights { display: grid; gap: 6px; }
+  .insights div { background: var(--card2); border-radius: 8px; padding: 8px 12px; }
+  .insights b { color: var(--accent); }
+  .note { color: var(--muted); font-size: 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>STRYK Analytics <small id="sub">กำลังโหลดข้อมูล...</small></h1>
+    <span class="spacer"></span>
+    <span id="rec" class="pill">recorder</span>
+    <a class="btn" href="./">← หน้าดูไลฟ์</a>
+    <button class="btn" id="csv">ดาวน์โหลด CSV</button>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>คนดูพร้อมกันตลอดงาน (แยกตามช่อง)</h2>
+      <div class="chartbox"><canvas id="cTime"></canvas></div>
+      <div class="note">เส้นประแนวตั้ง = เวลาเริ่มของแต่ละคู่</div>
+    </div>
+    <div class="card">
+      <h2>สัดส่วนผู้ชม (viewer-minutes)</h2>
+      <div class="chartbox sm"><canvas id="cShare"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid2b">
+    <div class="card">
+      <h2>คนดูระหว่างแต่ละคู่ (เฉลี่ย / สูงสุด รวมทุกช่อง)</h2>
+      <div class="chartbox sm"><canvas id="cMatch"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>สรุปอัตโนมัติ</h2>
+      <div class="insights" id="insights"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>ผลรายช่อง (คลิกหัวตารางเพื่อเรียง)</h2>
+    <div class="tablewrap"><table id="tbl"></table></div>
+    <div class="note">viewer-minutes = จำนวนคนดู × นาทีที่ดู (ใช้วัดว่าช่องไหนมีคนดูรวมมากที่สุด) ·
+      ไลค์/คอมเมนต์ = ที่เพิ่มขึ้นระหว่างไลฟ์ · ช่องที่ซ่อนจำนวนคนดูจะไม่มีตัวเลข</div>
+  </div>
+</div>
+
+<script>
+const REPO = 'miztania/liveMTX';
+const SOURCES = [
+  `https://api.github.com/repos/${REPO}/contents/live.json?ref=data`,       // สดสุด (จำกัด 60 ครั้ง/ชม./IP)
+  `https://raw.githubusercontent.com/${REPO}/data/live.json`,               // สำรอง (cache ~5 นาที)
+];
+const REFRESH_MS = 90_000;
+const DEMO = new URLSearchParams(location.search).has('demo');
+const COLORS = ['#ff6a1a', '#4c9aff', '#2fbf71', '#f5b400', '#c45cff', '#ff4d8d', '#22c3c3', '#a3e635', '#9aa0ab', '#ff8f6b', '#7aa2ff'];
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmt = n => n == null ? '—' : Math.round(n).toLocaleString();
+const tfmt = t => new Date(t).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
+const dur = ms => { const m = Math.round(ms / 60000); return m >= 60 ? `${Math.floor(m / 60)} ชม. ${m % 60} น.` : `${m} น.`; };
+const ms = s => new Date(s).getTime();
+
+let data = null, charts = {}, sortKey = 'vm', sortDir = -1, lastRows = [];
+
+// ===================== โหลดข้อมูล =====================
+async function load() {
+  if (DEMO) return demoData();
+  for (const url of SOURCES) {
+    try {
+      const r = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(),
+        url.includes('api.github.com') ? { headers: { Accept: 'application/vnd.github.raw' } } : {});
+      if (!r.ok) continue;
+      const j = await r.json();
+      if (j && j.samples) return j;
+    } catch {}
+  }
+  return null;
+}
+
+// ===================== วิเคราะห์ =====================
+function analyze(d) {
+  const chans = d.channels;
+  const keyOfVid = Object.fromEntries(Object.entries(d.streams).map(([v, s]) => [v, s.key]));
+  const interval = (d.interval || 60) * 1000;
+  const samples = d.samples || [];
+
+  // แปลง sample → คนดูต่อช่อง (รวมหลายไลฟ์ในช่องเดียวกัน)
+  const series = samples.map((s, i) => {
+    const next = samples[i + 1]?.t ?? s.t + interval;
+    const dt = Math.min(next - s.t, interval * 3);
+    const per = {}, likes = {}, comments = {};
+    for (const [vid, arr] of Object.entries(s.d || {})) {
+      const k = keyOfVid[vid]; if (!k) continue;
+      per[k] = (per[k] || 0) + (arr[0] || 0);
+      likes[vid] = arr[1]; comments[vid] = arr[2];
+    }
+    const total = Object.values(per).reduce((a, b) => a + b, 0);
+    return { t: s.t, dt, per, total, likes, comments, liveCount: Object.keys(s.d || {}).length };
+  });
+
+  const stat = {};
+  for (const c of chans) stat[c.key] = { key: c.key, name: c.name, official: !!c.official, vm: 0, peak: 0, peakAt: null,
+    liveMs: 0, sum: 0, n: 0, first: null, likes: 0, comments: 0, streams: 0 };
+  for (const p of series) {
+    for (const [k, v] of Object.entries(p.per)) {
+      const s = stat[k]; if (!s) continue;
+      s.vm += v * p.dt / 60000; s.sum += v; s.n++; s.liveMs += p.dt;
+      if (v > s.peak) { s.peak = v; s.peakAt = p.t; }
+      if (!s.first) s.first = p.t;
+    }
+  }
+  // ไลค์/คอมเมนต์ที่เพิ่มขึ้นต่อไลฟ์
+  for (const [vid, st] of Object.entries(d.streams)) {
+    const s = stat[st.key]; if (!s) continue;
+    s.streams++;
+    const pts = series.filter(p => p.likes[vid] != null);
+    if (pts.length > 1) {
+      s.likes += pts.at(-1).likes[vid] - pts[0].likes[vid];
+      s.comments += pts.at(-1).comments[vid] - pts[0].comments[vid];
+    }
+  }
+  const rows = Object.values(stat).map(s => ({ ...s, avg: s.n ? s.sum / s.n : 0 }));
+  const totalVm = rows.reduce((a, r) => a + r.vm, 0);
+  rows.forEach(r => r.share = totalVm ? r.vm / totalVm * 100 : 0);
+
+  const peakTotal = series.reduce((m, p) => p.total > m.v ? { v: p.total, t: p.t } : m, { v: 0, t: null });
+  const peakLive = series.reduce((m, p) => Math.max(m, p.liveCount), 0);
+  const active = series.filter(p => p.total > 0);
+  const avgTotal = active.length ? active.reduce((a, p) => a + p.total, 0) / active.length : 0;
+
+  // แต่ละคู่: เฉลี่ย/สูงสุดของคนดูรวม ในช่วงเวลาแข่ง (รวมกลุ่ม 21:00 เป็นช่วงเดียว)
+  const windows = [];
+  for (const m of d.matches) {
+    const label = m.label === 'รอบพร้อมกัน' ? 'รอบพร้อมกัน 21:00' : `${m.label} (${nameOf(d, m.a)} vs ${nameOf(d, m.b)})`;
+    if (windows.some(w => w.label === label)) continue;
+    const a = ms(m.at), b = ms(m.end || m.at) || a + 30 * 60e3;
+    const pts = series.filter(p => p.t >= a && p.t < b);
+    windows.push({ label, a, b, avg: pts.length ? pts.reduce((x, p) => x + p.total, 0) / pts.length : 0,
+      peak: pts.reduce((x, p) => Math.max(x, p.total), 0), n: pts.length });
+  }
+  const liveNow = new Set(Object.keys(samples.at(-1)?.d || {}).map(v => keyOfVid[v]));
+  return { series, rows, totalVm, peakTotal, peakLive, avgTotal, windows, liveNow };
+}
+const nameOf = (d, k) => d.channels.find(c => c.key === k)?.name || ({ MizuharaYami: 'Mizuhara Yami' }[k]) || k;
+
+// ===================== render =====================
+function render() {
+  if (!data) {
+    $('sub').textContent = 'ยังไม่มีข้อมูล — recorder ยังไม่เริ่ม (เริ่มเอง 18:30 น. หรือกด Run workflow ใน GitHub Actions)';
+    $('kpis').innerHTML = ''; $('insights').innerHTML = '<div class="empty">ลองดูตัวอย่างหน้าตาได้ที่ <a href="?demo=1" style="color:var(--accent)">?demo=1</a></div>';
+    $('rec').className = 'pill bad'; $('rec').textContent = 'ไม่พบข้อมูล';
+    return;
+  }
+  const A = analyze(data);
+  const ev = data.event || {};
+  const first = data.samples[0]?.t, last = data.samples.at(-1)?.t;
+  $('sub').textContent = `${ev.name || ''} · บันทึก ${first ? tfmt(first) : '—'}–${last ? tfmt(last) : '—'} (${first ? dur(last - first) : '—'}) · ${data.samples.length} จุดข้อมูล`;
+  const age = Date.now() - (data.updated || 0);
+  const st = data.status || {};
+  $('rec').className = 'pill ' + (DEMO ? 'demo' : st.ok === false ? 'bad' : age < 5 * 60e3 ? 'ok' : '');
+  $('rec').textContent = DEMO ? 'ข้อมูลตัวอย่าง (demo)' : st.ok === false ? 'recorder error: ' + (st.error || '') :
+    age < 5 * 60e3 ? `กำลังบันทึก · อัปเดต ${Math.round(age / 1000)} วิที่แล้ว` : `หยุดบันทึก · ล่าสุด ${tfmt(data.updated)}`;
+
+  const off = A.rows.find(r => r.official);
+  const k = [
+    ['คนดูพร้อมกันสูงสุด (รวม)', fmt(A.peakTotal.v), A.peakTotal.t ? 'เวลา ' + tfmt(A.peakTotal.t) : ''],
+    ['คนดูเฉลี่ย (รวม)', fmt(A.avgTotal), 'ช่วงที่มีไลฟ์'],
+    ['Viewer-minutes รวม', fmt(A.totalVm), '≈ ' + fmt(A.totalVm / 60) + ' ชั่วโมงที่ถูกดู'],
+    ['ช่องทางการ: สูงสุด', fmt(off?.peak), off?.peakAt ? 'เวลา ' + tfmt(off.peakAt) : ''],
+    ['ช่องทางการ: สัดส่วน', off ? off.share.toFixed(1) + '%' : '—', 'ของ viewer-minutes ทั้งหมด'],
+    ['ไลฟ์พร้อมกันสูงสุด', fmt(A.peakLive), 'ไลฟ์'],
+    ['ไลค์ที่เพิ่มขึ้น (รวม)', fmt(A.rows.reduce((a, r) => a + r.likes, 0)), 'คอมเมนต์ +' + fmt(A.rows.reduce((a, r) => a + r.comments, 0))],
+  ];
+  $('kpis').innerHTML = k.map(([l, v, s]) => `<div class="card kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
+
+  drawTime(A); drawShare(A); drawMatch(A); renderTable(A); renderInsights(A);
+}
+
+const colorOf = (() => { const m = {}; let i = 0; return k => m[k] ||= COLORS[i++ % COLORS.length]; })();
+
+const matchLines = {
+  id: 'matchLines',
+  afterDatasetsDraw(chart) {
+    const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+    ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = '#f5b40088'; ctx.fillStyle = '#f5b400'; ctx.font = '10px system-ui';
+    const seen = new Set();
+    for (const m of data.matches) {
+      if (seen.has(m.at)) continue; seen.add(m.at);
+      const px = x.getPixelForValue(ms(m.at));
+      if (px < x.left || px > x.right) continue;
+      ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px, bottom); ctx.stroke();
+      ctx.fillText(m.label, px + 3, top + 10);
+    }
+    ctx.restore();
+  },
+};
+
+function baseOpts(extra = {}) {
+  return {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: { legend: { labels: { color: '#c8ccd4', boxWidth: 10 } }, tooltip: { mode: 'index', intersect: false } },
+    scales: {
+      x: { ticks: { color: '#9aa0ab' }, grid: { color: '#23262d' } },
+      y: { ticks: { color: '#9aa0ab' }, grid: { color: '#23262d' }, beginAtZero: true },
+    },
+    ...extra,
+  };
+}
+
+function upsert(id, cfg) {
+  if (charts[id]) { charts[id].data = cfg.data; charts[id].options = cfg.options; charts[id].update('none'); }
+  else charts[id] = new Chart($(id), cfg);
+}
+
+function drawTime(A) {
+  const keys = A.rows.filter(r => r.n > 0).sort((a, b) => b.vm - a.vm).map(r => r.key);
+  const datasets = keys.map(k => ({
+    label: nameOf(data, k), data: A.series.map(p => ({ x: p.t, y: p.per[k] ?? 0 })),
+    borderColor: colorOf(k), backgroundColor: colorOf(k) + '55', fill: true, pointRadius: 0, borderWidth: 1.5, tension: .25,
+  }));
+  const o = baseOpts({ interaction: { mode: 'index', intersect: false } });
+  o.scales.x = { type: 'linear', ticks: { color: '#9aa0ab', callback: v => tfmt(v), maxTicksLimit: 10 }, grid: { color: '#23262d' } };
+  o.scales.y.stacked = true;
+  o.plugins.tooltip.callbacks = { title: it => tfmt(it[0].parsed.x), footer: it => 'รวม ' + fmt(it.reduce((a, b) => a + b.parsed.y, 0)) };
+  upsert('cTime', { type: 'line', data: { datasets }, options: o, plugins: [matchLines] });
+}
+
+function drawShare(A) {
+  const rows = A.rows.filter(r => r.vm > 0).sort((a, b) => b.vm - a.vm);
+  const o = baseOpts(); delete o.scales;
+  o.plugins.legend.position = 'bottom';
+  o.plugins.tooltip = { callbacks: { label: c => `${c.label}: ${c.parsed.toFixed(1)}%` } };
+  upsert('cShare', { type: 'doughnut', data: { labels: rows.map(r => r.name),
+    datasets: [{ data: rows.map(r => r.share), backgroundColor: rows.map(r => colorOf(r.key)), borderColor: '#17191e' }] }, options: o });
+}
+
+function drawMatch(A) {
+  const o = baseOpts({ indexAxis: 'y' });
+  o.scales.x.beginAtZero = true;
+  upsert('cMatch', { type: 'bar', data: { labels: A.windows.map(w => w.label), datasets: [
+    { label: 'เฉลี่ย', data: A.windows.map(w => Math.round(w.avg)), backgroundColor: '#ff6a1a' },
+    { label: 'สูงสุด', data: A.windows.map(w => w.peak), backgroundColor: '#4c9aff' },
+  ] }, options: o });
+}
+
+const COLS = [
+  ['name', 'ช่อง'], ['peak', 'สูงสุด'], ['peakAt', 'เวลาสูงสุด'], ['avg', 'เฉลี่ย'], ['liveMs', 'เวลาไลฟ์'],
+  ['vm', 'Viewer-min'], ['share', 'สัดส่วน'], ['likes', '+ไลค์'], ['comments', '+คอมเมนต์'], ['first', 'เริ่มไลฟ์'],
+];
+function renderTable(A) {
+  lastRows = A.rows;
+  const rows = [...A.rows].sort((a, b) => {
+    const x = a[sortKey] ?? -1, y = b[sortKey] ?? -1;
+    return (typeof x === 'string' ? x.localeCompare(y) : x - y) * sortDir;
+  });
+  const cell = (r, k) => ({
+    name: `<span class="swatch" style="background:${colorOf(r.key)}"></span>${esc(r.name)}`,
+    peakAt: r.peakAt ? tfmt(r.peakAt) : '—', first: r.first ? tfmt(r.first) : '—',
+    liveMs: r.liveMs ? dur(r.liveMs) : '—', share: r.share.toFixed(1) + '%',
+  }[k] ?? (r.n || ['likes', 'comments'].includes(k) ? fmt(r[k]) : '—'));
+  $('tbl').innerHTML = `<tr>${COLS.map(([k, l]) => `<th data-k="${k}">${l}${sortKey === k ? (sortDir < 0 ? ' ▼' : ' ▲') : ''}</th>`).join('')}</tr>` +
+    rows.map(r => `<tr class="${A.liveNow.has(r.key) ? 'live' : ''}">${COLS.map(([k]) => `<td>${cell(r, k)}</td>`).join('')}</tr>`).join('');
+  $('tbl').querySelectorAll('th').forEach(th => th.onclick = () => {
+    sortDir = sortKey === th.dataset.k ? -sortDir : -1; sortKey = th.dataset.k; renderTable(A);
+  });
+}
+
+function renderInsights(A) {
+  const r = A.rows.filter(x => x.n > 0).sort((a, b) => b.vm - a.vm);
+  const out = [];
+  if (A.peakTotal.v) out.push(`คนดูพร้อมกันสูงสุด <b>${fmt(A.peakTotal.v)}</b> คน ตอน <b>${tfmt(A.peakTotal.t)}</b>${whichMatch(A.peakTotal.t)}`);
+  if (r[0]) out.push(`ช่องที่มีคนดูรวมมากสุด: <b>${esc(r[0].name)}</b> (${r[0].share.toFixed(1)}% ของทั้งหมด)`);
+  const off = A.rows.find(x => x.official), players = A.rows.filter(x => !x.official && x.n > 0);
+  if (off && players.length) {
+    const pv = players.reduce((a, x) => a + x.vm, 0);
+    out.push(`ไลฟ์ส่วนตัวของผู้แข่ง ${players.length} ช่อง มีคนดูรวม <b>${fmt(pv)}</b> viewer-min เทียบกับช่องทางการ <b>${fmt(off.vm)}</b> (${off.vm ? (pv / off.vm).toFixed(1) + 'x' : '—'})`);
+  }
+  const best = [...A.windows].filter(w => w.n).sort((a, b) => b.avg - a.avg)[0];
+  if (best) out.push(`คู่ที่มีคนดูเฉลี่ยมากสุด: <b>${esc(best.label)}</b> เฉลี่ย ${fmt(best.avg)} คน`);
+  const growth = A.rows.filter(x => x.n > 1).map(x => ({ x, g: x.peak - (A.series.find(p => p.per[x.key] != null)?.per[x.key] || 0) })).sort((a, b) => b.g - a.g)[0];
+  if (growth && growth.g > 0) out.push(`ช่องที่คนดูโตมากสุดระหว่างไลฟ์: <b>${esc(growth.x.name)}</b> (+${fmt(growth.g)} คนจากตอนเริ่ม)`);
+  const noLive = A.rows.filter(x => !x.n).map(x => x.name);
+  if (noLive.length) out.push(`ยังไม่พบไลฟ์จาก: ${noLive.map(esc).join(', ')}`);
+  $('insights').innerHTML = out.length ? out.map(s => `<div>${s}</div>`).join('') : '<div class="empty">ยังไม่มีไลฟ์ที่บันทึกได้</div>';
+}
+function whichMatch(t) {
+  const m = data.matches.find(m => t >= ms(m.at) && t < ms(m.end || m.at));
+  return m ? ` ระหว่าง ${esc(m.label)}` : '';
+}
+
+// ===================== CSV =====================
+$('csv').onclick = () => {
+  if (!data) return;
+  const A = analyze(data);
+  const keys = data.channels.map(c => c.key);
+  const lines = [['time', 'total', ...keys.map(k => nameOf(data, k))].join(',')];
+  for (const p of A.series) lines.push([new Date(p.t).toISOString(), p.total, ...keys.map(k => p.per[k] ?? '')].join(','));
+  lines.push('', ['channel', ...COLS.slice(1).map(c => c[1])].join(','));
+  for (const r of A.rows) lines.push([r.name, r.peak, r.peakAt ? new Date(r.peakAt).toISOString() : '', Math.round(r.avg),
+    Math.round(r.liveMs / 60000), Math.round(r.vm), r.share.toFixed(2), r.likes, r.comments, r.first ? new Date(r.first).toISOString() : ''].join(','));
+  const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'stryk-analytics.csv'; a.click();
+};
+
+// ===================== demo =====================
+async function demoData() {
+  const cfg = await fetch('channels.json').then(r => r.json());
+  const start = ms('2026-10-17T18:50:00+07:00'), end = ms('2026-10-17T23:00:00+07:00');
+  const plan = { MTX: [start, end, 900], BaggioPac: [ms('2026-10-17T19:45:00+07:00'), ms('2026-10-17T21:10:00+07:00'), 2500],
+    Book: [ms('2026-10-17T19:55:00+07:00'), ms('2026-10-17T22:00:00+07:00'), 600], NewPlayerX1: [ms('2026-10-17T19:20:00+07:00'), ms('2026-10-17T20:30:00+07:00'), 1400],
+    MizuharaYami: [ms('2026-10-17T18:55:00+07:00'), ms('2026-10-17T19:50:00+07:00'), 700], BugTa: [ms('2026-10-17T20:55:00+07:00'), ms('2026-10-17T22:20:00+07:00'), 120] };
+  const streams = {}, samples = [];
+  for (const [k, [a, b]] of Object.entries(plan)) streams['v' + k] = { key: k, title: `${k} live`, start: a, end: b, peak: 0 };
+  let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  for (let t = start; t <= end; t += 60e3) {
+    const d = {};
+    for (const [k, [a, b, base]] of Object.entries(plan)) {
+      if (t < a || t > b) continue;
+      const x = (t - a) / (b - a);
+      let v = base * (0.35 + 0.65 * Math.sin(Math.PI * Math.min(1, x * 1.3))) * (0.92 + rnd() * 0.16);
+      if (k === 'MTX') for (const m of cfg.matches) if (t >= ms(m.at) && t < ms(m.end)) v *= 1.6;
+      d['v' + k] = [Math.round(v), Math.round((t - a) / 60e3 * base / 40), Math.round((t - a) / 60e3 * 3), 0];
+    }
+    samples.push({ t, d });
+  }
+  return { ...cfg, interval: 60, streams, samples, updated: Date.now(), status: { ok: true } };
+}
+
+// ===================== start =====================
+async function refresh() {
+  const d = await load();
+  if (d) data = d;
+  render();
+}
+refresh();
+if (!DEMO) setInterval(refresh, REFRESH_MS);
+</script>
+</body>
+</html>
