@@ -97,6 +97,7 @@
   <header>
     <h1>STRYK Live Hub <small>Muay Thai XTREME · รอบแรก · ส. 17 ต.ค. 2026 · ไลฟ์ทางการ + ไลฟ์ส่วนตัวของผู้แข่ง</small></h1>
     <span class="spacer"></span>
+    <a id="testToggle" class="badge checking" style="text-decoration:none;cursor:pointer"></a>
     <span id="clock" class="badge checking"></span>
   </header>
 
@@ -176,11 +177,11 @@ const MATCHES = [
   { label: 'Featured 1', at: '2026-10-17T19:00:00+07:00', a: 'MizuharaYami', b: 'Jaosine' },
   { label: 'Featured 2', at: '2026-10-17T19:30:00+07:00', a: 'Teep',         b: 'NewPlayerX1' },
   { label: 'Main Event', at: '2026-10-17T20:00:00+07:00', a: 'BaggioPac',    b: 'Book' },
-  { label: '21:00', at: '2026-10-17T21:00:00+07:00', a: 'MiarCat',   b: 'Nadriguez' },
-  { label: '21:00', at: '2026-10-17T21:00:00+07:00', a: 'ToonSoSad', b: 'Jephiroth' },
-  { label: '21:00', at: '2026-10-17T21:00:00+07:00', a: 'Zeena',     b: 'BottomofFoodchain' },
-  { label: '21:00', at: '2026-10-17T21:00:00+07:00', a: 'RuTz08',    b: 'Taxinn' },
-  { label: '21:00', at: '2026-10-17T21:00:00+07:00', a: 'BugTa',     b: '007ZA' },
+  { label: 'รอบพร้อมกัน', at: '2026-10-17T21:00:00+07:00', a: 'MiarCat',   b: 'Nadriguez' },
+  { label: 'รอบพร้อมกัน', at: '2026-10-17T21:00:00+07:00', a: 'ToonSoSad', b: 'Jephiroth' },
+  { label: 'รอบพร้อมกัน', at: '2026-10-17T21:00:00+07:00', a: 'Zeena',     b: 'BottomofFoodchain' },
+  { label: 'รอบพร้อมกัน', at: '2026-10-17T21:00:00+07:00', a: 'RuTz08',    b: 'Taxinn' },
+  { label: 'รอบพร้อมกัน', at: '2026-10-17T21:00:00+07:00', a: 'BugTa',     b: '007ZA' },
 ];
 const DISPLAY = { MizuharaYami: 'Mizuhara Yami' };
 
@@ -447,6 +448,8 @@ setInterval(render, 30_000);
 channels.forEach(c => st[c.key] = { status: 'checking' });
 render();
 log('เริ่มติดตาม ' + channels.length + ' ช่อง');
+$('testToggle').href = TEST_MODE ? location.pathname : '?test=1';
+$('testToggle').textContent = TEST_MODE ? '✕ ออกจากโหมดทดสอบ' : '🧪 ทดสอบด้วยช่องไลฟ์ 24 ชม.';
 if (TEST_MODE) { log('🧪 <b>โหมดทดสอบ</b>: เพิ่มช่องข่าวที่ไลฟ์ 24 ชม. 2 ช่อง (สถิติแยกจากของจริง)'); document.querySelector('h1').insertAdjacentHTML('beforeend', ' <span class="badge upcoming">TEST MODE</span>'); }
 
 const tag = document.createElement('script');
