@@ -124,7 +124,12 @@ async function load() {
         url.includes('api.github.com') ? { headers: { Accept: 'application/vnd.github.raw' } } : {});
       if (!r.ok) continue;
       const j = await r.json();
-      if (j && j.samples) return j;
+      if (j && j.samples) {
+        // ตัดข้อมูลจากการทดสอบก่อนงานเริ่ม (เผื่อ 30 นาที)
+        const from = ms(j.event?.start) - 30 * 60e3;
+        if (from) j.samples = j.samples.filter(s => s.t >= from);
+        return j;
+      }
     } catch {}
   }
   return null;
