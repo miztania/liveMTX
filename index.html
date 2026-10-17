@@ -195,10 +195,16 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
-let channels = [...BASE_CHANNELS, ...store.get('stryk_extra', [])];
+// โหมดทดสอบ: เปิด ?test=1 จะเพิ่มช่องข่าวที่ไลฟ์ 24 ชม. ไว้ดูว่าหน้าทำงาน (ไม่บันทึกสถิติ)
+const TEST_MODE = new URLSearchParams(location.search).has('test');
+const TEST_CHANNELS = [
+  { key: 'TEST_AJ', name: '[TEST] Al Jazeera', id: 'UCNye-wNBqNL5ZzHSJj3l8Bg', handle: '@aljazeeraenglish', conf: 'sure', test: true },
+  { key: 'TEST_DW', name: '[TEST] DW News',    id: 'UCknLrEdhRCp1aegoMqRaCZg', handle: '@dwnews',           conf: 'sure', test: true },
+];
+let channels = [...BASE_CHANNELS, ...store.get('stryk_extra', []), ...(TEST_MODE ? TEST_CHANNELS : [])];
 const st = {};          // key -> { status, videoId, title, since, viewers }
-let sessions = store.get('stryk_sessions_' + DAY, {}); // key -> [{s, e}]
-let peak = store.get('stryk_peak_' + DAY, 0);
+let sessions = store.get('stryk_sessions_' + DAY + (TEST_MODE ? '_test' : ''), {}); // key -> [{s, e}]
+let peak = store.get('stryk_peak_' + DAY + (TEST_MODE ? '_test' : ''), 0);
 let mainKey = null;
 const $ = id => document.getElementById(id);
 const nameOf = k => (channels.find(c => c.key === k)?.name) || DISPLAY[k] || k;
@@ -283,7 +289,7 @@ function applyStatus(ch, res) {
   }
   if (res.status === 'upcoming' && prev.status !== 'upcoming') log(`🟡 <b>${esc(ch.name)}</b> ตั้งไลฟ์รอไว้ — ${esc(res.title || '')}`);
   st[ch.key] = next;
-  store.set('stryk_sessions_' + DAY, sessions);
+  store.set('stryk_sessions_' + DAY + (TEST_MODE ? '_test' : ''), sessions);
   render();
 }
 
@@ -371,7 +377,7 @@ function render() {
 
   // KPI
   $('kLive').textContent = live.length;
-  if (live.length > peak) { peak = live.length; store.set('stryk_peak_' + DAY, peak); }
+  if (live.length > peak) { peak = live.length; store.set('stryk_peak_' + DAY + (TEST_MODE ? '_test' : ''), peak); }
   $('kPeak').textContent = peak;
   const firsts = Object.entries(sessions).filter(([, a]) => a.length).map(([k, a]) => [k, a[0].s]).sort((a, b) => a[1] - b[1]);
   $('kFirst').textContent = firsts.length ? `${nameOf(firsts[0][0])} ${tfmt(firsts[0][1])}` : '—';
@@ -441,6 +447,7 @@ setInterval(render, 30_000);
 channels.forEach(c => st[c.key] = { status: 'checking' });
 render();
 log('เริ่มติดตาม ' + channels.length + ' ช่อง');
+if (TEST_MODE) { log('🧪 <b>โหมดทดสอบ</b>: เพิ่มช่องข่าวที่ไลฟ์ 24 ชม. 2 ช่อง (สถิติแยกจากของจริง)'); document.querySelector('h1').insertAdjacentHTML('beforeend', ' <span class="badge upcoming">TEST MODE</span>'); }
 
 const tag = document.createElement('script');
 tag.src = 'https://www.youtube.com/iframe_api';
