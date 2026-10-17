@@ -293,7 +293,7 @@ function startProbing() {
   channels.forEach((ch, i) => {
     st[ch.key] ||= { status: 'checking' };
     const loop = async () => {
-      applyStatus(ch, await probe(ch));
+      applyStatus(ch, withRecorder(ch, await probe(ch)));
       setTimeout(loop, PROBE_EVERY_MS);
     };
     setTimeout(loop, i * 1500); // กระจายไม่ให้โหลดพร้อมกัน
@@ -316,6 +316,13 @@ async function loadRecorder() {
   }
   return null;
 }
+// ไลฟ์ที่ recorder เห็น (ใช้ยืนยันเมื่อตัวเช็กในหน้าเว็บพลาด เช่นช่องที่มีไลฟ์ตั้งเวลารออยู่อีกอัน)
+let recLive = {}, recFresh = false;
+function withRecorder(ch, res) {
+  const r = recLive[ch.key];
+  if (res.status !== 'live' && recFresh && r) return { status: 'live', videoId: r.videoId, title: r.title };
+  return res;
+}
 async function pollViewers() {
   const d = TEST_MODE ? null : await loadRecorder();
   if (d && Date.now() - (d.updated || 0) < 5 * 60e3) {
@@ -325,10 +332,17 @@ async function pollViewers() {
       const k = d.streams[vid]?.key;
       if (k && arr[0] != null) perKey[k] = (perKey[k] || 0) + arr[0];
     }
+    recLive = {}; recFresh = true;
+    for (const vid of Object.keys(last)) {
+      const s = d.streams[vid];
+      if (s && !s.end && !recLive[s.key]) recLive[s.key] = { videoId: vid, title: s.title };
+    }
+    for (const c of channels) if (recLive[c.key] && st[c.key]?.status !== 'live') applyStatus(c, withRecorder(c, { status: 'offline' }));
     for (const c of channels) if (st[c.key]) st[c.key].viewers = st[c.key].status === 'live' ? (perKey[c.key] ?? null) : null;
     $('recInfo').textContent = 'อัปเดตจาก recorder ' + tfmt(d.updated);
     render();
   } else {
+    recFresh = false;
     $('recInfo').textContent = TEST_MODE ? 'โหมดทดสอบไม่ดึงคนดู' : 'recorder ยังไม่ทำงาน';
   }
   setTimeout(pollViewers, VIEWERS_EVERY_MS);
@@ -444,7 +458,7 @@ $('addBtn').onclick = () => {
   extra.push(ch); store.set('stryk_extra', extra);
   channels = channels.filter(c => c.key !== key).concat(ch);
   st[key] = { status: 'checking' };
-  (async function loop() { applyStatus(ch, await probe(ch)); setTimeout(loop, PROBE_EVERY_MS); })();
+  (async function loop() { applyStatus(ch, withRecorder(ch, await probe(ch))); setTimeout(loop, PROBE_EVERY_MS); })();
   render();
 };
 document.addEventListener('click', () => {
