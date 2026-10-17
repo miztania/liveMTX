@@ -53,7 +53,7 @@ def tick(cfg, state):
     for ch in cfg["channels"]:
         uploads = "UU" + ch["id"][2:]
         try:
-            pl = get("playlistItems", part="contentDetails", playlistId=uploads, maxResults=5)
+            pl = get("playlistItems", part="contentDetails", playlistId=uploads, maxResults=10)
             quota += 1
             for it in pl.get("items", []):
                 candidates.add(it["contentDetails"]["videoId"])
