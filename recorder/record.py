@@ -49,8 +49,10 @@ def load_state(cfg):
 
 def tick(cfg, state):
     quota = 0
-    candidates = set(v for v, s in state["streams"].items() if not s.get("end"))
+    candidates = set(v for v, s in state["streams"].items() if not s.get("end") and not v.startswith("tw:"))
     for ch in cfg["channels"]:
+        if ch.get("platform", "youtube") != "youtube":
+            continue
         uploads = "UU" + ch["id"][2:]
         try:
             pl = get("playlistItems", part="contentDetails", playlistId=uploads, maxResults=10)
@@ -60,7 +62,7 @@ def tick(cfg, state):
         except Exception as e:
             print(f"playlist {ch['key']}: {e}", file=sys.stderr)
 
-    ch_by_id = {c["id"]: c["key"] for c in cfg["channels"]}
+    ch_by_id = {c["id"]: c["key"] for c in cfg["channels"] if c.get("id")}
     sample = {}
     ids = list(candidates)
     for i in range(0, len(ids), 50):
@@ -98,10 +100,54 @@ def tick(cfg, state):
             if viewers is not None and viewers > s["peak"]:
                 s["peak"], s["peakAt"] = viewers, now_ms()
 
+    twitch_tick(cfg, state, sample)
     state["samples"].append({"t": now_ms(), "d": sample})
     state["updated"] = now_ms()
     q = state["status"].get("quota", 0) + quota
     state["status"] = {"ok": True, "quota": q, "live": len(sample)}
+
+
+TWITCH_API = os.environ.get("TWITCH_API", "https://decapi.me/twitch/")
+
+
+def decapi(what, login):
+    req = urllib.request.Request(TWITCH_API + what + "/" + login, headers={"User-Agent": "stryk-recorder"})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        return r.read().decode("utf-8", "replace").strip()
+
+
+def twitch_tick(cfg, state, sample):
+    """Twitch ผ่าน decapi.me (ไม่ต้องใช้ key) · stream id = tw:<login>:<start>"""
+    for ch in cfg["channels"]:
+        if ch.get("platform") != "twitch":
+            continue
+        login = ch["login"]
+        try:
+            txt = decapi("viewercount", login)
+        except Exception as e:
+            print(f"twitch {login}: {e}", file=sys.stderr)
+            continue
+        active = next((v for v, s in state["streams"].items()
+                       if v.startswith(f"tw:{login}:") and not s.get("end")), None)
+        if not txt.isdigit():  # "<login> is offline"
+            if active:
+                state["streams"][active]["end"] = now_ms()
+                print(f"- ended {ch['key']}")
+            continue
+        viewers = int(txt)
+        if not active:
+            try:
+                title = decapi("title", login)
+            except Exception:
+                title = ""
+            active = f"tw:{login}:{now_ms()}"
+            state["streams"][active] = {"key": ch["key"], "title": title, "platform": "twitch",
+                                        "scheduled": None, "start": now_ms(), "end": None, "peak": 0, "peakAt": None}
+            print(f"+ live {ch['key']}: {title}")
+        s = state["streams"][active]
+        sample[active] = [viewers, 0, 0, 0]
+        if viewers > s["peak"]:
+            s["peak"], s["peakAt"] = viewers, now_ms()
 
 
 def save(state):
@@ -118,6 +164,11 @@ def push():
 
 
 def main():
+    for stream in (sys.stdout, sys.stderr):  # log ที่มีอีโมจิต้องไม่ทำให้รอบพัง
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     if not KEY:
         sys.exit("ไม่มี YT_API_KEY")
     with open(CFG, encoding="utf-8") as f:

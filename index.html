@@ -166,6 +166,10 @@ const BASE_CHANNELS = [
   { key: 'Zeena',       name: 'Zeena',          id: 'UC1mw0Y8nvWsAEwJeFEj1fLA', handle: '@ZENAseewithyou',    conf: 'maybe' },
   { key: 'RuTz08',      name: 'RuTz08',         id: 'UCQs8s0u2SqvZJvPxyzEXlnA', handle: '@RuTz_08',           conf: 'maybe' },
   { key: 'ToonSoSad',   name: 'ToonSoSad',      id: 'UCzWr-46GgB51W-3MS7sPPnw', handle: '@ToonSoSad',         conf: 'maybe' },
+  // Twitch: เช็กสถานะ/คนดูผ่าน decapi.me (ไม่ต้องใช้ key) · player = ผู้แข่งคนเดียวกับช่อง YouTube
+  { key: 'Book@twitch',         name: 'Book (Twitch)',          platform: 'twitch', login: 'booktekken',   handle: 'twitch.tv/booktekken',   conf: 'sure', player: 'Book' },
+  { key: 'MizuharaYami@twitch', name: 'Mizuhara Yami (Twitch)', platform: 'twitch', login: 'mizuharayami', handle: 'twitch.tv/mizuharayami', conf: 'sure', player: 'MizuharaYami' },
+  // TikTok: ไม่มี API ให้เช็ก → แสดงเป็นลิงก์ให้กดดูเอง  เช่น { key: 'Teep@tiktok', name: 'Teep (TikTok)', platform: 'tiktok', login: 'ชื่อบัญชี', handle: '@ชื่อบัญชี', conf: 'sure', player: 'Teep' },
 ];
 
 const MATCHES = [
@@ -196,6 +200,7 @@ const TEST_MODE = new URLSearchParams(location.search).has('test');
 const TEST_CHANNELS = [
   { key: 'TEST_AJ', name: '[TEST] Al Jazeera', id: 'UCNye-wNBqNL5ZzHSJj3l8Bg', handle: '@aljazeeraenglish', conf: 'sure', test: true },
   { key: 'TEST_DW', name: '[TEST] DW News',    id: 'UCknLrEdhRCp1aegoMqRaCZg', handle: '@dwnews',           conf: 'sure', test: true },
+  { key: 'TEST_TW', name: '[TEST] Twitch jynxzi', platform: 'twitch', login: 'jynxzi', handle: 'twitch.tv/jynxzi', conf: 'sure', test: true },
 ];
 let channels = [...BASE_CHANNELS, ...store.get('stryk_extra', []), ...(TEST_MODE ? TEST_CHANNELS : [])];
 const st = {};          // key -> { status, videoId, title, since, viewers }
@@ -216,7 +221,26 @@ function log(html) {
 
 // ===================== ตรวจสถานะไลฟ์ (ไม่ใช้ key) =====================
 // ใช้ YouTube IFrame player แบบซ่อน โหลด live_stream ของแต่ละช่อง แล้วดูว่ามีวิดีโอไลฟ์อยู่ไหม
+async function probeTwitch(ch) {
+  try {
+    const txt = (await fetch('https://decapi.me/twitch/viewercount/' + ch.login).then(r => r.text())).trim();
+    if (!/^\d+$/.test(txt)) return { status: 'offline' };
+    const title = st[ch.key]?.status === 'live' ? st[ch.key].title
+      : (await fetch('https://decapi.me/twitch/title/' + ch.login).then(r => r.text()).catch(() => '')).trim();
+    return { status: 'live', videoId: 'tw:' + ch.login, title, viewers: Number(txt) };
+  } catch { return { status: st[ch.key]?.status === 'live' ? 'live' : 'offline' }; }
+}
+
+function embedSrc(c, s, extra = '') {
+  if (c?.platform === 'twitch') return `https://player.twitch.tv/?channel=${c.login}&parent=${location.hostname}&muted=true&autoplay=true`;
+  return `https://www.youtube.com/embed/${s.videoId}?autoplay=1&mute=1&playsinline=1${extra}`;
+}
+const linkOf = c => c.platform === 'twitch' ? `https://www.twitch.tv/${c.login}`
+  : c.platform === 'tiktok' ? `https://www.tiktok.com/@${c.login}/live` : `https://www.youtube.com/channel/${c.id}/live`;
+
 function probe(ch) {
+  if (ch.platform === 'twitch') return probeTwitch(ch);
+  if (ch.platform === 'tiktok') return Promise.resolve({ status: 'unknown' });
   return new Promise(resolve => {
     const host = document.createElement('div');
     $('probes').appendChild(host);
@@ -338,7 +362,7 @@ async function pollViewers() {
       if (s && !s.end && !recLive[s.key]) recLive[s.key] = { videoId: vid, title: s.title };
     }
     for (const c of channels) if (recLive[c.key] && st[c.key]?.status !== 'live') applyStatus(c, withRecorder(c, { status: 'offline' }));
-    for (const c of channels) if (st[c.key]) st[c.key].viewers = st[c.key].status === 'live' ? (perKey[c.key] ?? null) : null;
+    for (const c of channels) if (st[c.key]) st[c.key].viewers = st[c.key].status === 'live' ? (perKey[c.key] ?? (c.platform === 'twitch' ? st[c.key].viewers : null)) : null;
     $('recInfo').textContent = 'อัปเดตจาก recorder ' + tfmt(d.updated);
     render();
   } else {
@@ -354,7 +378,7 @@ function notify(title, body) {
 
 // ===================== render =====================
 function badge(s, viewers) {
-  const map = { live: 'LIVE', upcoming: 'รอไลฟ์', offline: 'ออฟไลน์', checking: 'กำลังเช็ก' };
+  const map = { unknown: 'กดดูเอง', live: 'LIVE', upcoming: 'รอไลฟ์', offline: 'ออฟไลน์', checking: 'กำลังเช็ก' };
   const v = s === 'live' && viewers != null ? ` · ${viewers.toLocaleString()}` : '';
   return `<span class="badge ${s || 'checking'}">${map[s] || map.checking}${v}</span>`;
 }
@@ -363,7 +387,7 @@ function setMain(key) {
   mainKey = key;
   const s = st[key];
   if (!s?.videoId) { $('main').innerHTML = '<div class="empty">ยังไม่มีช่องไหนไลฟ์</div>'; return; }
-  $('main').innerHTML = `<iframe src="https://www.youtube.com/embed/${s.videoId}?autoplay=1&mute=1&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+  $('main').innerHTML = `<iframe src="${embedSrc(channels.find(c => c.key === key), s)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
   $('mainBadge').innerHTML = badge(s.status, s.viewers);
   $('mainTitle').textContent = `${nameOf(key)} — ${s.title || ''}`;
   renderMulti();
@@ -380,7 +404,7 @@ function renderMulti() {
   multiSig = sig;
   $('multi').innerHTML = live.length ? live.map(c => `
     <div class="tile ${c.key === mainKey ? 'active' : ''}" data-tile="${c.key}">
-      <div class="vid"><iframe src="https://www.youtube.com/embed/${st[c.key].videoId}?autoplay=1&mute=1&controls=0&playsinline=1" allow="autoplay"></iframe></div>
+      <div class="vid"><iframe src="${embedSrc(c, st[c.key], '&controls=0')}" allow="autoplay"></iframe></div>
       <div class="cap"><b>${esc(c.name)}</b>${badge('live', st[c.key].viewers)}</div>
     </div>`).join('') : '<div style="color:var(--muted)">ยังไม่มี</div>';
   $('multi').querySelectorAll('.tile').forEach(t => t.onclick = () => setMain(t.dataset.tile));
@@ -418,19 +442,26 @@ function render() {
     const s = st[c.key] || {};
     const sub = s.status === 'live' ? `ไลฟ์มา ${dur(now - s.since)} · ${s.title || ''}` : s.status === 'upcoming' ? `รอไลฟ์ · ${s.title || ''}` : c.handle;
     return `<div class="ch ${s.status === 'live' ? 'live' : ''}">
-      <span class="n"><a href="https://www.youtube.com/channel/${c.id}/live" target="_blank" rel="noopener">${esc(c.name)}</a>${c.conf === 'maybe' ? '<span class="tag">ยังไม่ยืนยัน</span>' : ''}${c.custom ? '<span class="tag">เพิ่มเอง</span>' : ''}</span>
+      <span class="n"><a href="${linkOf(c)}" target="_blank" rel="noopener">${esc(c.name)}</a>${c.platform && c.platform !== 'youtube' ? `<span class="tag">${c.platform === 'twitch' ? 'Twitch' : 'TikTok'}</span>` : ''}${c.conf === 'maybe' ? '<span class="tag">ยังไม่ยืนยัน</span>' : ''}${c.custom ? '<span class="tag">เพิ่มเอง</span>' : ''}</span>
       ${badge(s.status, s.viewers)}
       <span class="s">${esc(sub)}</span></div>`;
   }).join('');
   const all = [...new Set(MATCHES.flatMap(m => [m.a, m.b]))];
-  const miss = all.filter(k => !channels.some(c => c.key === k));
+  const miss = all.filter(k => !channels.some(c => (c.player || c.key) === k));
   $('missing').textContent = miss.length ? 'ยังไม่พบช่อง YouTube: ' + miss.map(nameOf).join(', ') : '';
 
   // matches
   $('matches').innerHTML = MATCHES.map(m => {
     const t = new Date(m.at).getTime();
     const phase = now >= t + 30 * 60e3 ? '<span class="done">จบแล้ว</span>' : now >= t ? '<span class="now">กำลังแข่ง</span>' : `อีก ${dur(t - now)}`;
-    const side = k => { const c = channels.find(c => c.key === k); return `<span>${esc(nameOf(k))}</span>${c ? badge(st[k]?.status, st[k]?.viewers) : '<span class="tag">ไม่มีช่อง</span>'}`; };
+    const side = k => {
+      const cs = channels.filter(c => (c.player || c.key) === k);
+      if (!cs.length) return `<span>${esc(nameOf(k))}</span><span class="tag">ไม่มีช่อง</span>`;
+      const lives = cs.filter(c => st[c.key]?.status === 'live');
+      const v = lives.map(c => st[c.key].viewers).filter(x => x != null);
+      const status = lives.length ? 'live' : cs.some(c => st[c.key]?.status === 'checking') ? 'checking' : 'offline';
+      return `<span>${esc(nameOf(k))}${lives.length > 1 ? ` <span class="tag">${lives.length} ไลฟ์</span>` : ''}</span>${badge(status, v.length ? v.reduce((a, b) => a + b, 0) : null)}`;
+    };
     return `<div class="m"><div class="h"><span>${m.label} · ${tfmt(t)}</span>${phase}</div>
       <div class="p">${side(m.a)}</div><div class="p">${side(m.b)}</div></div>`;
   }).join('');
@@ -472,7 +503,7 @@ render();
 log('เริ่มติดตาม ' + channels.length + ' ช่อง');
 $('testToggle').href = TEST_MODE ? location.pathname : '?test=1';
 $('testToggle').textContent = TEST_MODE ? '✕ ออกจากโหมดทดสอบ' : '🧪 ทดสอบด้วยช่องไลฟ์ 24 ชม.';
-if (TEST_MODE) { log('🧪 <b>โหมดทดสอบ</b>: เพิ่มช่องข่าวที่ไลฟ์ 24 ชม. 2 ช่อง (สถิติแยกจากของจริง)'); document.querySelector('h1').insertAdjacentHTML('beforeend', ' <span class="badge upcoming">TEST MODE</span>'); }
+if (TEST_MODE) { log('🧪 <b>โหมดทดสอบ</b>: เพิ่มช่องทดสอบ 3 ช่อง (YouTube 2 + Twitch 1) (สถิติแยกจากของจริง)'); document.querySelector('h1').insertAdjacentHTML('beforeend', ' <span class="badge upcoming">TEST MODE</span>'); }
 
 const tag = document.createElement('script');
 tag.src = 'https://www.youtube.com/iframe_api';

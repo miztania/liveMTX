@@ -5,24 +5,123 @@
     "end": "2026-10-18T00:30:00+07:00"
   },
   "channels": [
-    { "key": "MTX",          "name": "Muay Thai XTREME (ทางการ)", "id": "UCalrBraXBM1e-W3KN1LXbvw", "official": true },
-    { "key": "BaggioPac",    "name": "BaggioPac",     "id": "UCwijn5jPhwZIrOh5WSZ6W-A" },
-    { "key": "Book",         "name": "Book",          "id": "UC66G9HelrGzlpPZUJmkQgLA" },
-    { "key": "NewPlayerX1",  "name": "NewPlayerX1",   "id": "UCURiGkVFYtO1JMxlwcPQI_Q" },
-    { "key": "MizuharaYami", "name": "Mizuhara Yami", "id": "UC1ibZkqGoK8pSctzOwXUcWA" },
-    { "key": "BugTa",        "name": "BugTa",         "id": "UCfOQVOpbSyhAscC31pP-NDg" },
-    { "key": "Zeena",        "name": "Zeena",         "id": "UC1mw0Y8nvWsAEwJeFEj1fLA" },
-    { "key": "RuTz08",       "name": "RuTz08",        "id": "UCQs8s0u2SqvZJvPxyzEXlnA" },
-    { "key": "ToonSoSad",    "name": "ToonSoSad",     "id": "UCzWr-46GgB51W-3MS7sPPnw" }
+    {
+      "key": "MTX",
+      "name": "Muay Thai XTREME (ทางการ)",
+      "id": "UCalrBraXBM1e-W3KN1LXbvw",
+      "official": true
+    },
+    {
+      "key": "BaggioPac",
+      "name": "BaggioPac",
+      "id": "UCwijn5jPhwZIrOh5WSZ6W-A"
+    },
+    {
+      "key": "Book",
+      "name": "Book",
+      "id": "UC66G9HelrGzlpPZUJmkQgLA"
+    },
+    {
+      "key": "NewPlayerX1",
+      "name": "NewPlayerX1",
+      "id": "UCURiGkVFYtO1JMxlwcPQI_Q"
+    },
+    {
+      "key": "MizuharaYami",
+      "name": "Mizuhara Yami",
+      "id": "UC1ibZkqGoK8pSctzOwXUcWA"
+    },
+    {
+      "key": "BugTa",
+      "name": "BugTa",
+      "id": "UCfOQVOpbSyhAscC31pP-NDg"
+    },
+    {
+      "key": "Zeena",
+      "name": "Zeena",
+      "id": "UC1mw0Y8nvWsAEwJeFEj1fLA"
+    },
+    {
+      "key": "RuTz08",
+      "name": "RuTz08",
+      "id": "UCQs8s0u2SqvZJvPxyzEXlnA"
+    },
+    {
+      "key": "ToonSoSad",
+      "name": "ToonSoSad",
+      "id": "UCzWr-46GgB51W-3MS7sPPnw"
+    },
+    {
+      "key": "Book@twitch",
+      "name": "Book (Twitch)",
+      "platform": "twitch",
+      "login": "booktekken",
+      "player": "Book"
+    },
+    {
+      "key": "MizuharaYami@twitch",
+      "name": "Mizuhara Yami (Twitch)",
+      "platform": "twitch",
+      "login": "mizuharayami",
+      "player": "MizuharaYami"
+    }
   ],
   "matches": [
-    { "label": "Featured 1",  "at": "2026-10-17T19:00:00+07:00", "end": "2026-10-17T19:30:00+07:00", "a": "MizuharaYami", "b": "Jaosine" },
-    { "label": "Featured 2",  "at": "2026-10-17T19:30:00+07:00", "end": "2026-10-17T20:00:00+07:00", "a": "Teep",         "b": "NewPlayerX1" },
-    { "label": "Main Event",  "at": "2026-10-17T20:00:00+07:00", "end": "2026-10-17T21:00:00+07:00", "a": "BaggioPac",    "b": "Book" },
-    { "label": "รอบพร้อมกัน", "at": "2026-10-17T21:00:00+07:00", "end": "2026-10-17T22:30:00+07:00", "a": "MiarCat",   "b": "Nadriguez" },
-    { "label": "รอบพร้อมกัน", "at": "2026-10-17T21:00:00+07:00", "end": "2026-10-17T22:30:00+07:00", "a": "ToonSoSad", "b": "Jephiroth" },
-    { "label": "รอบพร้อมกัน", "at": "2026-10-17T21:00:00+07:00", "end": "2026-10-17T22:30:00+07:00", "a": "Zeena",     "b": "BottomofFoodchain" },
-    { "label": "รอบพร้อมกัน", "at": "2026-10-17T21:00:00+07:00", "end": "2026-10-17T22:30:00+07:00", "a": "RuTz08",    "b": "Taxinn" },
-    { "label": "รอบพร้อมกัน", "at": "2026-10-17T21:00:00+07:00", "end": "2026-10-17T22:30:00+07:00", "a": "BugTa",     "b": "007ZA" }
+    {
+      "label": "Featured 1",
+      "at": "2026-10-17T19:00:00+07:00",
+      "end": "2026-10-17T19:30:00+07:00",
+      "a": "MizuharaYami",
+      "b": "Jaosine"
+    },
+    {
+      "label": "Featured 2",
+      "at": "2026-10-17T19:30:00+07:00",
+      "end": "2026-10-17T20:00:00+07:00",
+      "a": "Teep",
+      "b": "NewPlayerX1"
+    },
+    {
+      "label": "Main Event",
+      "at": "2026-10-17T20:00:00+07:00",
+      "end": "2026-10-17T21:00:00+07:00",
+      "a": "BaggioPac",
+      "b": "Book"
+    },
+    {
+      "label": "รอบพร้อมกัน",
+      "at": "2026-10-17T21:00:00+07:00",
+      "end": "2026-10-17T22:30:00+07:00",
+      "a": "MiarCat",
+      "b": "Nadriguez"
+    },
+    {
+      "label": "รอบพร้อมกัน",
+      "at": "2026-10-17T21:00:00+07:00",
+      "end": "2026-10-17T22:30:00+07:00",
+      "a": "ToonSoSad",
+      "b": "Jephiroth"
+    },
+    {
+      "label": "รอบพร้อมกัน",
+      "at": "2026-10-17T21:00:00+07:00",
+      "end": "2026-10-17T22:30:00+07:00",
+      "a": "Zeena",
+      "b": "BottomofFoodchain"
+    },
+    {
+      "label": "รอบพร้อมกัน",
+      "at": "2026-10-17T21:00:00+07:00",
+      "end": "2026-10-17T22:30:00+07:00",
+      "a": "RuTz08",
+      "b": "Taxinn"
+    },
+    {
+      "label": "รอบพร้อมกัน",
+      "at": "2026-10-17T21:00:00+07:00",
+      "end": "2026-10-17T22:30:00+07:00",
+      "a": "BugTa",
+      "b": "007ZA"
+    }
   ]
 }
