@@ -371,7 +371,7 @@ async function demoData() {
       if (t < a || t > b) continue;
       const x = (t - a) / (b - a);
       let v = base * (0.35 + 0.65 * Math.sin(Math.PI * Math.min(1, x * 1.3))) * (0.92 + rnd() * 0.16);
-      if (k === 'MTX') for (const m of cfg.matches) if (t >= ms(m.at) && t < ms(m.end)) v *= 1.6;
+      if (k === 'MTX' && cfg.matches.some(m => t >= ms(m.at) && t < ms(m.end))) v *= 1.6;
       d['v' + k] = [Math.round(v), Math.round((t - a) / 60e3 * base / 40), Math.round((t - a) / 60e3 * 3), 0];
     }
     samples.push({ t, d });
