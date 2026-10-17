@@ -325,7 +325,7 @@ function withRecorder(ch, res) {
 }
 async function pollViewers() {
   const d = TEST_MODE ? null : await loadRecorder();
-  if (d && Date.now() - (d.updated || 0) < 5 * 60e3) {
+  if (d && Date.now() - (d.updated || 0) < 12 * 60e3) {
     const last = d.samples.at(-1)?.d || {};
     const perKey = {};
     for (const [vid, arr] of Object.entries(last)) {

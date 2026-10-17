@@ -215,9 +215,9 @@ function render() {
   $('sub').textContent = `${ev.name || ''} · บันทึก ${first ? tfmt(first) : '—'}–${last ? tfmt(last) : '—'} (${first ? dur(last - first) : '—'}) · ${data.samples.length} จุดข้อมูล`;
   const age = Date.now() - (data.updated || 0);
   const st = data.status || {};
-  $('rec').className = 'pill ' + (DEMO ? 'demo' : st.ok === false ? 'bad' : age < 5 * 60e3 ? 'ok' : '');
+  $('rec').className = 'pill ' + (DEMO ? 'demo' : st.ok === false ? 'bad' : age < 12 * 60e3 ? 'ok' : '');
   $('rec').textContent = DEMO ? 'ข้อมูลตัวอย่าง (demo)' : st.ok === false ? 'recorder error: ' + (st.error || '') :
-    age < 5 * 60e3 ? `กำลังบันทึก · อัปเดต ${Math.round(age / 1000)} วิที่แล้ว` : `หยุดบันทึก · ล่าสุด ${tfmt(data.updated)}`;
+    age < 12 * 60e3 ? `กำลังบันทึก · อัปเดต ${Math.round(age / 1000)} วิที่แล้ว` : `หยุดบันทึก · ล่าสุด ${tfmt(data.updated)}`;
 
   const off = A.rows.find(r => r.official);
   const k = [

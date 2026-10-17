@@ -1,15 +1,14 @@
 name: STRYK live recorder
 
 # บันทึกจำนวนคนดูทุก 60 วิ ตลอดงาน แล้ว push ไฟล์ live.json ขึ้น branch `data`
-# เริ่มเอง 18:30 น. (11:30 UTC) วันที่ 17 ต.ค. หรือกด "Run workflow" เองได้ทุกเมื่อ
+# GitHub อาจเริ่มงานตั้งเวลาช้า/ข้าม จึงตั้งไว้ทุก 15 นาทีช่วงงาน (19:00–00:15 น.)
+# ถ้ามีรอบรันอยู่แล้ว concurrency จะให้รอบใหม่รอคิว และ recorder จะจบเองเมื่อเลยเวลาจบงาน
+# กด "Run workflow" เองได้ทุกเมื่อ (บันทึกต่อจากข้อมูลเดิม)
 on:
   schedule:
-    - cron: "30 11 17 10 *"
+    - cron: "*/15 12-16 17 10 *"
+    - cron: "0,15 17 17 10 *"
   workflow_dispatch:
-    inputs:
-      minutes:
-        description: "บันทึกนานสุดกี่นาที (สูงสุด 345)"
-        default: "345"
 
 permissions:
   contents: write
@@ -50,5 +49,5 @@ jobs:
           CHANNELS: ../channels.json
           OUT: live.json
           GIT_PUSH: "1"
-          MAX_MINUTES: ${{ github.event.inputs.minutes || '345' }}
+          MAX_MINUTES: "345"
         run: python3 ../recorder/record.py
