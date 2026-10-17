@@ -232,9 +232,22 @@ function probe(ch) {
             return finish({ status: 'offline' });
           }
           if (!d.video_id || d.video_id === 'live_stream' || d.errorCode) return finish({ status: 'offline' });
-          // ไม่ไลฟ์ YouTube อาจส่งคลิปเก่า/คลิปแนะนำมาแทน จึงนับเฉพาะ isLive เท่านั้น
-          if (!d.isLive) return finish({ status: 'offline' });
-          finish({ status: 'live', videoId: d.video_id, title: d.title });
+          // isLive ตอน onReady ยังไม่จริง → สั่งเล่นแบบปิดเสียงแล้วดูว่าเล่นเป็นสตรีมสดได้ไหม
+          // ไลฟ์จริง: state=1 + isManifestless · ไลฟ์ที่ตั้งรอไว้: isLive แต่เล่นไม่ได้ (state -1)
+          e.target.mute(); e.target.playVideo();
+          let tries = 0;
+          const check = setInterval(() => {
+            const v = e.target.getVideoData() || {};
+            const playing = e.target.getPlayerState() === 1;
+            if (playing && v.isLive && v.isManifestless) {
+              clearInterval(check);
+              return finish({ status: 'live', videoId: v.video_id, title: v.title });
+            }
+            if (++tries >= 8) {
+              clearInterval(check);
+              finish({ status: 'offline' });
+            }
+          }, 1000);
         },
         onError: () => finish({ status: 'offline' }),
       },
